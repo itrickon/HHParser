@@ -157,34 +157,31 @@ class HHParse:
     async def data_output_to_xlsx(self, get_firm_data):
         """Выводим данные в файл xlsx"""
         try:
-            # Создаем или открываем файл
+            # Создаем новый файл или добавляем к существующему
             if not os.path.exists(self.data_saving):
-                # Создаем новую книгу
-                self.wb = openpyxl.Workbook()
-                self.ws = self.wb.active
-                # Записываем заголовки
-                headers = ['URL', 'Название вакансии', 'Название компании', 'Телефон', 'ФИО']
-                for col, header in enumerate(headers, start=1):
-                    self.ws.cell(row=1, column=col, value=header)
-                self.start_row = 2
-            else:
-                # Открыть существующий файл
-                self.wb = openpyxl.load_workbook(self.data_saving)
-                self.ws = self.wb.active
-                # Находим последнюю заполненную строку
-                self.start_row = self.ws.max_row + 1
+                # Создаем новый DataFrame
+                df = pd.DataFrame(columns=['URL', 'Название вакансии', 'Название компании', 'Телефон', 'ФИО'])
+                df.to_excel(self.data_saving, index=False)
             
-            # Цикл по данным фирм
-            for firm_data in get_firm_data:
-                # Проверяем, что firm_data не пустой
-                if firm_data:
-                    # Запись каждой строки в Excel
-                    for col, value in enumerate(firm_data, start=1):
-                        self.ws.cell(row=self.start_row, column=col, value=value)
-                    self.start_row += 1
+            # Загружаем существующие данные
+            existing_df = pd.read_excel(self.data_saving)
             
-            # Сохраняем файл
-            self.wb.save(self.data_saving)
+            # Создаем DataFrame из новых данных
+            new_df = pd.DataFrame(get_firm_data, columns=['URL', 'Название вакансии', 'Название компании', 'Телефон', 'ФИО'])
+            
+            # Объединяем старые и новые данные
+            combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+            
+            # Сохраняем с использованием openpyxl
+            with pd.ExcelWriter(
+                self.data_saving, 
+                engine='openpyxl',
+                mode='w'  # Явно указываем режим записи
+            ) as writer:
+                combined_df.to_excel(writer, index=False)
+            
+            print(f"Данные сохранены в {self.data_saving}")
+            
         except Exception as e:
             print(f"Ошибка при сохранении в Excel: {e}")
             
@@ -445,6 +442,7 @@ async def main():
         gui_works = False,
     )
     await parser.parse_main()
+    
 
 
 if __name__ == "__main__":

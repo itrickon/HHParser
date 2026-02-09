@@ -7,7 +7,8 @@ import tkinter as tk
 import webbrowser
 from tkinter import ttk, messagebox, filedialog, IntVar, Toplevel, Text
 from hh_phone_search import HHParse
-class AvitoParser(ttk.Frame):
+from Main_HH_files.async_runner import AsyncParserRunner
+class HHParser(ttk.Frame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.parent = parent
@@ -29,9 +30,8 @@ class AvitoParser(ttk.Frame):
         self.phone_excel_path = None  # Путь к Excel файлу для парсера телефонов
         self.is_decoding = False
  
-        self.output_excel="данные_клиентов.xlsx"
+        self.output_excel="hh_parse_results/data.xlsx"
 
- 
     def interface_style(self):
         sv_ttk.set_theme("light")
            
@@ -126,7 +126,9 @@ class AvitoParser(ttk.Frame):
 
         # Используем grid для всех кнопок внутри button_frame
         ttk.Button(button_frame, text="Сортировать", 
-                command=self.start_sorting, width=20).grid(row=0, column=0, columnspan=2, padx=5, pady=0, sticky=tk.W+tk.E)
+                command=self.start_sorting, width=20).grid(row=0, column=0, padx=5, pady=0, sticky=tk.W)
+        ttk.Button(button_frame, text="Вход выполнен", 
+                command=self.on_continue_clicked, width=20).grid(row=0, column=1, padx=5, pady=0, sticky=tk.W)
         ttk.Button(button_frame, text="Остановить парсинг", 
                 command=self.stop_parsing, width=20).grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         ttk.Button(button_frame, text="Очистить лог", 
@@ -175,10 +177,19 @@ class AvitoParser(ttk.Frame):
                 max_num_firm=self.firm_count_var.get(),
                 gui_works = True)
             sorted_app.parse_main()
-            
-            self.log_message("Сортировка успешно завершена!")
-            self.log_message(f"Результат сохранен в: {self.output_excel}")
-            self.status_var.set("Сортировка завершена")
+            # Создаем и запускаем runner
+            self.is_parsing = True
+            self.parser_instance = HHParse(
+                input_file=self.phone_excel_path, 
+                max_num_firm=self.firm_count_var.get(),
+                gui_works = True)
+            print('Запуск')
+            runner = AsyncParserRunner(
+                self.parser_instance,
+                update_callback=self.update_gui_from_thread,
+                completion_callback=self.on_parsing_complete
+            )
+            runner.start()
             
         except Exception as e:
             self.log_message(f"Ошибка при сортировке: {str(e)}")
@@ -296,6 +307,19 @@ class AvitoParser(ttk.Frame):
                 
         except Exception as e:
             raise ValueError(f"Ошибка загрузки файла: {str(e)}")
+         
+    def on_continue_clicked(self):
+        """Обработчик нажатия кнопки 'Вход выполнен'"""
+        try:
+            if hasattr(self, 'parser_instance') and self.parser_instance:
+                # Отправляем подтверждение в парсер
+                self.parser_instance.trigger_enter_from_gui()
+                self.log_message("Подтверждение входа отправлено парсеру")
+                self.status_var.set("Парсинг продолжается...")
+            else:
+                self.log_message("Ошибка: парсер не инициализирован")
+        except Exception as e:
+            self.log_message(f"Ошибка отправки подтверждения: {str(e)}")
             
     def btn_open(self):
         """Обработчик кнопки 'Excel файл после поиска обновлений'"""
@@ -331,6 +355,20 @@ class AvitoParser(ttk.Frame):
                 messagebox.showerror("Ошибка", f"Не удалось загрузить файл:\n{str(e)}")
                 self.status_var.set("Ошибка загрузки файла")
                 self.phone_excel_path = None
+ 
+    def on_parsing_complete(self, flag=True):
+        """Вызывается при завершении парсинга (успешном или с ошибкой)"""
+        def update():
+            self.is_parsing = False
+            if flag:
+                self.status_var.set("Парсинг завершен")
+                self.log_message("Парсинг завершен")
+            else:
+                self.status_var.set("Парсинг остановлен")
+                self.log_message("Парсинг остановлен")
+        
+        # Выполняем в основном потоке GUI
+        self.after(0, update)
  
     def stop_parsing(self):
         """Остановка парсинга - просто закрываем Chrome"""
@@ -474,7 +512,7 @@ class AvitoParser(ttk.Frame):
 def main():
     """Точка входа в приложение"""
     root = tk.Tk()
-    app = AvitoParser(root)
+    app = HHParser(root)
     root.mainloop()
 
 
