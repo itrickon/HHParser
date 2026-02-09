@@ -282,8 +282,11 @@ class HHParse:
 
     async def __get_firm_data_from_page(self, page, url: str):
         """Извлекает данные фирмы с открытой страницы"""
-        
-        url = url[url.find('hh'):] # Берем ссылке, начиная с hh
+        if url.find('?') != -1:
+            url = url[url.find('hh'):url.find('?') + 1] # Берем ссылке, начиная с hh
+        else:
+            url = url[url.find('hh'):]
+            
         firm_data = {
             "url": url,
             "firm_vacancy": "Не найдено",
@@ -348,6 +351,13 @@ class HHParse:
         """Парсинг сайта"""
         urls = self.read_urls_from_excel_or_csv(self.INPUT_SHEET, self.URL_COLUMN)
         urls = urls[:self.max_num_firm]
+        
+        print("\n" + "=" * 50)
+        print("EDUCATIONAL USE ONLY - NO WARRANTY PROVIDED")
+        print("This parser may violate Terms of Service.")
+        print("Use only for learning web scraping techniques.")
+        print("Author not responsible for any legal consequences.")
+        print("=" * 50 + "\n")
         
         print(f"Новых ссылок к обработке: {len(urls)};")
         if update_callback:
