@@ -57,6 +57,10 @@ class HHParser(ttk.Frame):
         self.parent.bind("<Control-o>", lambda _: self.btn_open())  # Горячие клавиши
         self.parent.bind("<Control-l>", lambda _: self.clear_log())
         self.parent.bind("<Control-q>", lambda _: self.btn_exit())
+        self.parent.bind("<Control-s>", lambda _: self.stop_parsing())
+        self.parent.bind("<Control-g>", lambda _: self.on_continue_clicked())
+        self.parent.bind("<Control-k>", lambda _: self.hotkeys_info())
+        self.parent.bind("<F1>", lambda _: self.open_link())
         parse_menu.add_separator()
         parse_menu.add_command(label="Выход", command=self.btn_exit)
 
@@ -67,6 +71,7 @@ class HHParser(ttk.Frame):
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Справка", menu=help_menu)
         help_menu.add_command(label="Руководство пользователя", command=self.open_link)
+        help_menu.add_command(label="Горячие клавиши", command=self.hotkeys_info)
         help_menu.add_separator()
         help_menu.add_command(label="О программе", command=self.btn_about)
 
@@ -448,6 +453,57 @@ class HHParser(ttk.Frame):
 
     def open_link(self):
         webbrowser.open("https://github.com/itrickon/HHParser")
+
+    def hotkeys_info(self):
+        """Обработчик кнопки 'Горячие клавиши'"""
+        # Создаем собственное окно вместо messagebox
+        top = Toplevel()
+        top.title("Горячие клавиши")
+        
+        # Создаем Frame для размещения текстового виджета и скроллбара
+        frame = tk.Frame(top)
+        frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        
+        # Создаем текстовое поле
+        text_widget = Text(frame, wrap=tk.WORD, width=60, height=12, 
+                        font=("Arial", 10))
+        
+        
+        top.resizable(False, False)
+        
+        # Добавляем остальной текст
+        cities = [
+        "       Горячие клавиши приложения:\n",
+        "   Основные операции:\n",
+        "     • Ctrl + O   - Открыть Excel файл...\n",
+        "     • Ctrl + S   - Остановить парсинг\n",
+        "     • Ctrl + L    - Очистить лог\n",
+        "     • Ctrl + Q   - Выйти из приложения\n",
+        "     • Ctrl + G   - Вход выполнен\n",
+        "     • Ctrl + K   - Горячие клавиши\n",
+        "   Дополнительные:\n",
+        "     • F1         - Руководство пользователя\n",
+        "   Сочетания клавиш работают в любом месте приложения.\n",
+        ]
+        
+        for city_text in cities:
+            text_widget.insert(tk.END, city_text)
+        
+        text_widget.configure(state='disabled')  # Только для чтения
+        
+        # Кнопка закрытия
+        button = tk.Button(top, text="Закрыть", command=top.destroy)
+        
+        text_widget.pack()
+        button.pack(pady=10)
+        
+        # Центрируем окно
+        top.update_idletasks()
+        width = top.winfo_width()
+        height = top.winfo_height()
+        x = (top.winfo_screenwidth() // 2) - (width // 2)
+        y = (top.winfo_screenheight() // 2) - (height // 2)
+        top.geometry(f'{width}x{height}+{x}+{y}')
 
     def btn_about(self):
         """Обработчик кнопки 'О программе'"""

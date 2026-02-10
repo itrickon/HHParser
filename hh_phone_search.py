@@ -373,10 +373,13 @@ class HHParse:
         print("=" * 50 + "\n")
 
         print(f"Новых ссылок к обработке: {len(urls)};")
-        if update_callback and len(urls) == 0:
-            update_callback(f"Внимание! Новых ссылок к обработке: {len(urls)};")
-        else:
-            update_callback(f"Новых ссылок к обработке: {len(urls)};")
+        try:
+            if update_callback and len(urls) == 0:
+                update_callback(f"Внимание! Новых ссылок к обработке: {len(urls)};")
+            else:
+                update_callback(f"Новых ссылок к обработке: {len(urls)};")
+        except:
+            pass
         # atexit.register(self.flush_progress)  # Регистрация функции при завершении программы
 
         async with async_playwright() as playwright:
@@ -457,7 +460,7 @@ class HHParse:
 async def main():
     parser = HHParse(
         input_file="abc.xlsx",
-        max_num_firm=20,  # Сколько вакансий собрать
+        max_num_firm=5,  # Сколько вакансий собрать
         gui_works=False,
     )
     await parser.parse_main()
