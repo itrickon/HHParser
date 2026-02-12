@@ -24,6 +24,7 @@ class HHParse:
         self.list_of_companies = []
         self.start_row = 2
         self.count_page = 0
+        self.warning_message()
 
         # БАЗОВЫЕ ТАЙМАУТЫ
         self.CLICK_DELAY = (
@@ -360,17 +361,18 @@ class HHParse:
             firm_data["fio"],
         ]
 
-    async def parse_main(self, update_callback=None):
-        """Парсинг сайта"""
-        urls = self.read_urls_from_excel_or_csv(self.INPUT_SHEET, self.URL_COLUMN)
-        urls = urls[: self.max_num_firm]
-
+    def warning_message(self):
         print("\n" + "=" * 50)
         print("EDUCATIONAL USE ONLY - NO WARRANTY PROVIDED")
         print("This parser may violate Terms of Service.")
         print("Use only for learning web scraping techniques.")
         print("Author not responsible for any legal consequences.")
         print("=" * 50 + "\n")
+
+    async def parse_main(self, update_callback=None):
+        """Парсинг сайта"""
+        urls = self.read_urls_from_excel_or_csv(self.INPUT_SHEET, self.URL_COLUMN)
+        urls = urls[: self.max_num_firm]
 
         print(f"Новых ссылок к обработке: {len(urls)};")
         try:

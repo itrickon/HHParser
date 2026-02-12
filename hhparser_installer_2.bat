@@ -26,7 +26,7 @@ pyinstaller --clean --noconfirm ^
 --windowed ^
 --icon="static/HHParse_logo.ico" ^
 --add-data="static;static" ^
---add-data="%LOCALAPPDATA%\ms-playwright\chromium-1208;ms-playwright\chromium-1208" ^
+--add-data="%LOCALAPPDATA%\ms-playwright\chromium-1200;ms-playwright\chromium-1200" ^
 --runtime-hook=playwright_runtime_hook.py ^
 gui.py
 
