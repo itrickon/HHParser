@@ -335,7 +335,11 @@ class HHParse:
                         fio_text = await fio_element.text_content()
                         if fio_text and fio_text.strip():
                             firm_data["fio"] = fio_text.strip()
-
+                    try:        
+                        await page.locator("text=Показать телефон").click()
+                    except: 
+                        pass
+                    
                     # После клика ищем телефон
                     phone_element = await page.query_selector('[data-qa="vacancy-contacts__phone-number"]')
                     if phone_element:
