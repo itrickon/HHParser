@@ -328,17 +328,19 @@ class HHParse:
                     # Пытаемся кликнуть, если кнопка есть
                     await contact_button.click()
                     await self.human_sleep(0.5, 1.0)  # Ждем появления контактной информации
-
+                    
+                    try:        
+                        await page.locator("text=Показать телефон").click()
+                        await self.human_sleep(0.5, 1.0)  # Ждем появления контактной информации
+                    except: 
+                        pass
+                    
                     # После клика ищем ФИО
                     fio_element = await page.query_selector('[data-qa="vacancy-contacts__fio"]')
                     if fio_element:
                         fio_text = await fio_element.text_content()
                         if fio_text and fio_text.strip():
                             firm_data["fio"] = fio_text.strip()
-                    try:        
-                        await page.locator("text=Показать телефон").click()
-                    except: 
-                        pass
                     
                     # После клика ищем телефон
                     phone_element = await page.query_selector('[data-qa="vacancy-contacts__phone-number"]')
