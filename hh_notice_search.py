@@ -130,7 +130,7 @@ class HHParse:
     async def extract_phone_from_contact_popup(self, page: AsyncPage) -> str:
         """Извлечение телефона из всплывающего окна контактов"""
         try:
-            await self.human_sleep(1.0, 1.5)
+            await self.human_sleep(0.3, 0.6)
 
             # Основные селекторы для телефона
             phone_selectors = [
@@ -420,11 +420,11 @@ class HHParse:
 
             print("Переходим на следующую страницу...")
             await next_button.click()
-            await self.human_sleep(2, 3)
+            await self.human_sleep(0.2, 0.7)
 
             # Ждем загрузки
             await self.page.wait_for_load_state("domcontentloaded", timeout=10000)
-            await self.human_sleep(1, 1.5)
+            await self.human_sleep(0.2, 0.5)
 
             # Скроллим
             await self.human_scroll_jitter(self.page)
@@ -530,7 +530,7 @@ class HHParse:
                             await self.data_output_to_xlsx(self.list_of_companies)
                             self.list_of_companies = []
 
-                        await self.human_sleep(1, 2)
+                        await self.human_sleep(0.3, 0.7)
 
                     # Сохраняем остатки
                     if self.list_of_companies:
@@ -546,7 +546,7 @@ class HHParse:
                     print("\nПроверяем наличие следующей страницы...")
                     if await self.go_to_next_page():
                         page_num += 1
-                        await self.human_sleep(2, 3)
+                        await self.human_sleep(0.3, 0.6)
                     else:
                         print("Больше нет страниц для парсинга")
                         break

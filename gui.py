@@ -173,6 +173,7 @@ class HHParser(ttk.Frame):
         scrollbar.config(command=self.log_text.yview)
 
     def start_sorting(self):
+        """Запуск парсинга"""
         if not self.phone_excel_path:
             self.log_message("Ошибка! Сначала выберите Excel файл")
             self.status_var.set("Сначала выберите Excel файл")
@@ -184,31 +185,29 @@ class HHParser(ttk.Frame):
             return
 
         try:
-            # Передаем полный путь к файлу
-            sorted_app = HHParse(
-                input_file=self.phone_excel_path,
-                max_num_firm=self.firm_count_var.get(),
-                gui_works=True,
-            )
-            sorted_app.parse_main()
-            # Создаем и запускаем runner
             self.is_parsing = True
             self.parser_instance = HHParse(
                 input_file=self.phone_excel_path,
                 max_num_firm=self.firm_count_var.get(),
-                gui_works=True)
-            print("Запуск")
+                gui_works=True  # GUI режим
+            )
+            
+            print("Запуск парсинга в отдельном потоке...")
+            self.log_message("Запуск парсинга...")
+            
+            # Создаем и запускаем runner
             runner = AsyncParserRunner(
                 self.parser_instance,
                 update_callback=self.update_gui_from_thread,
                 completion_callback=self.on_parsing_complete,
             )
-            runner.start()
-
+            runner.start()  # Запускаем ТОЛЬКО ОДИН раз
+            
         except Exception as e:
-            self.log_message(f"Ошибка при сортировке: {str(e)}")
-            messagebox.showerror("Ошибка", f"Ошибка при сортировке:\n{str(e)}")
-            self.status_var.set("Ошибка сортировки")
+            self.log_message(f"Ошибка при запуске парсинга: {str(e)}")
+            messagebox.showerror("Ошибка", f"Ошибка при запуске:\n{str(e)}")
+            self.status_var.set("Ошибка запуска")
+            self.is_parsing = False
 
     def theme_parser_mode(self):
         """Переключение между темой парсера"""

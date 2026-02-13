@@ -25,18 +25,18 @@ class HHParse:
         self.start_row = 2
         self.count_page = 0
         self.warning_message()
-
+        # Получаем данные фирмы для каждого URL в партии
+        self.batch_results = []
         # БАЗОВЫЕ ТАЙМАУТЫ
         self.CLICK_DELAY = (
-            1.5  # Базовая задержка в секундах перед ожиданием появления номера телефона
+            0.5  # Базовая задержка в секундах перед ожиданием появления номера телефона
         )
-        self.NAV_TIMEOUT = 35_000  #                       Таймаут загрузки страницы, мс (35 секунд)
         self.CONCURRENCY = 3  #                            Количество одновременно открытых вкладок браузера (2–3 оптимально)
         self.BATCH_CONCURRENCY_JITTER = True #             Иногда работаем 2 вкладками вместо 3 для естественности
-        self.NAV_STAGGER_BETWEEN_TABS = (0.45, 1.0)  #     Пауза перед открытием КАЖДОЙ вкладки (чтобы не стартовали все разом)
-        self.POST_NAV_IDLE = (0.35, 0.7)  #                Небольшая «заминка» после загрузки страницы перед действиями
-        self.PAGE_DELAY_BETWEEN_BATCHES = (1.2, 2.4,)  #   Пауза между партиями ссылок (раньше была (2.0, 4.0))
-        self.CLOSE_STAGGER_BETWEEN_TABS = (0.25, 0.55,)  # Вкладки закрываем с небольшой случайной паузой
+        self.NAV_STAGGER_BETWEEN_TABS = (0.15, 0.4)  #     Пауза перед открытием КАЖДОЙ вкладки (чтобы не стартовали все разом)
+        self.POST_NAV_IDLE = (0.35, 0.5)  #                Небольшая «заминка» после загрузки страницы перед действиями
+        self.PAGE_DELAY_BETWEEN_BATCHES = (0.2, 0.4,)  #   Пауза между партиями ссылок (раньше была (2.0, 4.0))
+        self.CLOSE_STAGGER_BETWEEN_TABS = (0.15, 0.25,)  # Вкладки закрываем с небольшой случайной паузой
 
         if os.path.exists(self.data_saving):
             os.remove(self.data_saving)
@@ -57,8 +57,8 @@ class HHParse:
             "mouse_wiggle_steps": (2, 5),  #         Сколько шагов «подёргиваний» мыши
             "between_actions_pause": (0.10,0.30),  # Пауза между действиями (скролл, клик, наведение)
             "click_delay_jitter": (
-                self.CLICK_DELAY * 0.9,
-                self.CLICK_DELAY * 1.25,
+                self.CLICK_DELAY * 0.4,
+                self.CLICK_DELAY * 0.8,
             ),  # Случайная задержка после клика по телефону (min и max)
         }
 
@@ -85,7 +85,6 @@ class HHParse:
                 direction = 1 if random.random() > 0.25 else -1
                 y = max(0, min(height, await page.evaluate("() => window.scrollY") + step * direction))
                 await page.evaluate("y => window.scrollTo({top: y, behavior: 'smooth'})", y)  # Плавный скролл через JavaScript
-                await self.human_sleep(*self.HUMAN["scroll_pause_s"])
         except Exception:
             pass
 
@@ -156,46 +155,40 @@ class HHParse:
         return urls
 
     async def data_output_to_xlsx(self, get_firm_data):
-        """Выводим данные в файл xlsx"""
+        """Быстрое сохранение в Excel"""
+        if not get_firm_data:
+            return
+        
         try:
-            # Создаем новый файл или добавляем к существующему
-            if not os.path.exists(self.data_saving):
-                # Создаем новый DataFrame
-                df = pd.DataFrame(
-                    columns=[
-                        "URL", "Название вакансии", 
-                        "Название компании",
-                        "Телефон", "ФИО",
-                    ]
-                )
-                df.to_excel(self.data_saving, index=False)
-
-            # Загружаем существующие данные
-            existing_df = pd.read_excel(self.data_saving)
-
-            # Создаем DataFrame из новых данных
+            # Создаем директорию, если её нет
+            os.makedirs(os.path.dirname(self.data_saving), exist_ok=True)
+            
             new_df = pd.DataFrame(
                 get_firm_data,
-                columns=[
-                    "URL", "Название вакансии",
-                    "Название компании",
-                    "Телефон", "ФИО",
-                ],
+                columns=["URL", "Название вакансии", "Название компании", "Телефон", "ФИО"],
             )
-
-            # Объединяем старые и новые данные
-            combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-
-            # Сохраняем с использованием openpyxl
-            with pd.ExcelWriter(
-                self.data_saving, engine="openpyxl", mode="w",  # Явно указываем режим записи
-            ) as writer:
-                combined_df.to_excel(writer, index=False)
-
-            print(f"Данные сохранены в {self.data_saving}")
-
+            
+            # Если файл не существует - создаем
+            if not os.path.exists(self.data_saving):
+                new_df.to_excel(self.data_saving, index=False)
+                print(f"Создан файл: {len(get_firm_data)} записей")
+                return
+            
+            # Если файл существует - добавляем строки
+            try:
+                # Читаем существующий файл
+                existing_df = pd.read_excel(self.data_saving)
+                
+                # Объединяем и сохраняем (быстро)
+                combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+                combined_df.to_excel(self.data_saving, index=False)
+                print(f"Добавлено {len(get_firm_data)} записей")
+                
+            except Exception as e:
+                print(f"Ошибка сохранения: {e}")
+                
         except Exception as e:
-            print(f"Ошибка при сохранении в Excel: {e}")
+            print(f"Ошибка: {e}")
 
     def get_random_user_agent(self):
         """Скрываем автоматизацию с помощью захода с разных систем"""
@@ -244,26 +237,21 @@ class HHParse:
                     # Не открываем все вкладки синхронно — ставим паузу перед каждым goto
                     await self.human_sleep(*self.NAV_STAGGER_BETWEEN_TABS)
                     try:
-                        await p.goto(url, wait_until="domcontentloaded", timeout=self.NAV_TIMEOUT)
+                        await p.goto(url, wait_until="domcontentloaded")
                     except PWTimeoutError:
                         print(f"Таймаут: {url}")
                         continue
-
-                    # Лёгкая «заминка» после навигации + пара скроллов(скрыто)
-                    await self.human_sleep(*self.POST_NAV_IDLE)
-
-                # Получаем данные фирмы для каждого URL в партии
-                batch_results = []
+                print(0)
                 for url, p in batch:
                     await self.human_sleep(*self.HUMAN["between_actions_pause"])
 
                     try:
                         # Извлекаем данные фирмы
                         firm_data = await self.__get_firm_data_from_page(p, url)
-
+                        print(1)
                         # Сохраняем результат только если есть телефон
-                        if (firm_data and firm_data[3] != "Телефон не найден"):  # Индекс 3 = телефон
-                            batch_results.append(firm_data)
+                        if firm_data and firm_data[3] != "Телефон не найден":  # Индекс 4 = телефон
+                            self.batch_results.append(firm_data)
                             print(f"Данные фирмы: {url} -> {firm_data}")
                             if update_callback:
                                 update_callback(f"Успешно: {url}")
@@ -278,14 +266,12 @@ class HHParse:
                             update_callback(f"Ошибка: {url}")
 
                 # Сохраняем все найденные данные партией (для оптимизации)
-                if batch_results:
-                    await self.data_output_to_xlsx(batch_results)
-
-                await self.human_sleep(*self.PAGE_DELAY_BETWEEN_BATCHES)  # Пауза между партиями
+                if len(self.batch_results) >= 5:  # Сохраняем пачками по 20
+                    await self.data_output_to_xlsx(self.batch_results)
+                    self.batch_results = []  # Очищаем после сохранения
         finally:
             for p in pages:
                 try:
-                    await self.human_sleep(*self.CLOSE_STAGGER_BETWEEN_TABS)
                     await p.close()  # Закрытие страницы
                 except Exception:
                     pass
@@ -308,52 +294,77 @@ class HHParse:
         try:
             # Извлечение названия вакансии
             vacancy_element = await page.query_selector('[data-qa="vacancy-title"]')
+            print(2)
             if vacancy_element:
                 vacancy_text = await vacancy_element.text_content()
                 if vacancy_text:
                     firm_data["firm_vacancy"] = vacancy_text.strip()
-
+            print(3)
             # Извлечение названия компании
             company_element = await page.query_selector('[data-qa="vacancy-company-name"] span')
             if company_element:
                 company_text = await company_element.text_content()
                 if company_text:
                     firm_data["company_name"] = " ".join(company_text.strip().split("\xa0"))
-
-            # Номер телефона и ФИО - ищем через кнопку "Связаться"
+            print(4)
+            
             try:
-                # Ищем кнопку "Связаться"
-                contact_button = await page.query_selector('button[data-qa*="show-employer-contacts"]')
-                if contact_button:
-                    # Пытаемся кликнуть, если кнопка есть
-                    await contact_button.click()
-                    await self.human_sleep(0.5, 1.0)  # Ждем появления контактной информации
-                    
-                    try:        
-                        await page.locator("text=Показать телефон").click()
-                        await self.human_sleep(0.5, 1.0)  # Ждем появления контактной информации
-                    except: 
-                        pass
-                    
-                    # После клика ищем ФИО
-                    fio_element = await page.query_selector('[data-qa="vacancy-contacts__fio"]')
-                    if fio_element:
-                        fio_text = await fio_element.text_content()
-                        if fio_text and fio_text.strip():
-                            firm_data["fio"] = fio_text.strip()
-                    
-                    # После клика ищем телефон
-                    phone_element = await page.query_selector('[data-qa="vacancy-contacts__phone-number"]')
-                    if phone_element:
-                        phone_text = await phone_element.text_content()
-                        if phone_text and phone_text.strip():
-                            firm_data["true_phone"] = phone_text.strip()
+                contact_btn = await page.query_selector('button[data-qa="show-employer-contacts show-employer-contacts_top-button"]')
+                if contact_btn:  # Проверка на None
+                    await contact_btn.click()
+                    await self.human_sleep(0.5, 0.8)
+                                
+                # Номер телефона и ФИО - ищем через кнопку "Связаться"
+                
+                fio_element = await page.query_selector('div[data-qa="vacancy-contacts__fio"]')
+                if fio_element:
+                    fio_text = await fio_element.text_content()
+                    if fio_text and fio_text.strip():
+                        firm_data["fio"] = fio_text.strip()
+                        print(f"ФИО найдено: {firm_data['fio']}")
+                
+                # Ищем телефон
+                # Сначала ищем span с номером телефона
+                phone_span = await page.query_selector('span[data-qa="vacancy-contacts__phone-number"]')
+                
+                if phone_span:
+                    phone_text = await phone_span.text_content()
+                    if phone_text and phone_text.strip():
+                        # Очищаем телефон от лишних символов, оставляем только цифры и +
+                        phone_clean = re.sub(r'[^\d+]', '', phone_text.strip())
+                        # Убираем + в начале для единообразия
+                        firm_data["true_phone"] = phone_clean.lstrip('+')
+                        print(f"Телефон найден: {firm_data['true_phone']}")
+                else:
+                    # Если телефон не найден, возможно нужно кликнуть по блоку телефона
+                    phone_block = await page.query_selector('div[data-qa="vacancy-contacts__phone"]')
+                    if phone_block:
+                        print("Кликаем по блоку телефона...")
+                        
+                        
+                        # Ищем телефон после клика
+                        phone_span = await page.query_selector('span[data-qa="vacancy-contacts__phone-number"]')
+                        if phone_span:
+                            phone_text = await phone_span.text_content()
+                            if phone_text and phone_text.strip():
+                                phone_clean = re.sub(r'[^\d+]', '', phone_text.strip())
+                                firm_data["true_phone"] = phone_clean.lstrip('+')
+                                print(f"Телефон найден после клика: {firm_data['true_phone']}")
+                            else:
+                                firm_data["true_phone"] = "Телефон не найден"
                         else:
                             firm_data["true_phone"] = "Телефон не найден"
                     else:
                         firm_data["true_phone"] = "Телефон не найден"
+                
             except Exception as e:
-                print(f"Ошибка при поиске телефона или ФИО: {e}")
+                print(f"Ошибка при поиске контактов: {e}")
+
+                    
+        except Exception as e:
+            print(f"Ошибка при поиске контактов: {e}")
+            firm_data["true_phone"] = f"Ошибка"
+
 
         except Exception as e:
             print(f"Ошибка при получении данных фирмы: {e}")
@@ -425,15 +436,14 @@ class HHParse:
                         await page.goto(
                             seed_url,
                             wait_until="domcontentloaded",
-                            timeout=self.NAV_TIMEOUT,
                         )
                     except PWTimeoutError:
                         try:
-                            await page.goto(seed_url, wait_until="domcontentloaded", timeout=self.NAV_TIMEOUT)
+                            await page.goto(seed_url, wait_until="domcontentloaded")
                         except PWTimeoutError:
                             print(f"Таймаут при загрузке {seed_url}")
 
-                    await self.human_sleep(0.4, 0.7)
+                    await self.human_sleep(0.2, 0.6)
 
                     print("\nТвои действия:")  # Инструкция пользователю
                     print(" • если есть капча — реши;")
@@ -457,6 +467,7 @@ class HHParse:
                         # Основной список из Excel
                 try:
                     await self.process_urls_with_pool(context, urls, update_callback)
+
                 except Exception as e:
                     print(f"Ошибка {e}")
 
