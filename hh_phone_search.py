@@ -241,14 +241,12 @@ class HHParse:
                     except PWTimeoutError:
                         print(f"Таймаут: {url}")
                         continue
-                print(0)
                 for url, p in batch:
                     await self.human_sleep(*self.HUMAN["between_actions_pause"])
 
                     try:
                         # Извлекаем данные фирмы
                         firm_data = await self.__get_firm_data_from_page(p, url)
-                        print(1)
                         # Сохраняем результат только если есть телефон
                         if firm_data and firm_data[3] != "Телефон не найден":  # Индекс 4 = телефон
                             self.batch_results.append(firm_data)
@@ -294,19 +292,16 @@ class HHParse:
         try:
             # Извлечение названия вакансии
             vacancy_element = await page.query_selector('[data-qa="vacancy-title"]')
-            print(2)
             if vacancy_element:
                 vacancy_text = await vacancy_element.text_content()
                 if vacancy_text:
                     firm_data["firm_vacancy"] = vacancy_text.strip()
-            print(3)
             # Извлечение названия компании
             company_element = await page.query_selector('[data-qa="vacancy-company-name"] span')
             if company_element:
                 company_text = await company_element.text_content()
                 if company_text:
                     firm_data["company_name"] = " ".join(company_text.strip().split("\xa0"))
-            print(4)
             
             try:
                 contact_btn = await page.query_selector('button[data-qa="show-employer-contacts show-employer-contacts_top-button"]')
@@ -321,7 +316,6 @@ class HHParse:
                     fio_text = await fio_element.text_content()
                     if fio_text and fio_text.strip():
                         firm_data["fio"] = fio_text.strip()
-                        print(f"ФИО найдено: {firm_data['fio']}")
                 
                 # Ищем телефон
                 # Сначала ищем span с номером телефона
@@ -334,7 +328,6 @@ class HHParse:
                         phone_clean = re.sub(r'[^\d+]', '', phone_text.strip())
                         # Убираем + в начале для единообразия
                         firm_data["true_phone"] = phone_clean.lstrip('+')
-                        print(f"Телефон найден: {firm_data['true_phone']}")
                 else:
                     # Если телефон не найден, возможно нужно кликнуть по блоку телефона
                     phone_block = await page.query_selector('div[data-qa="vacancy-contacts__phone"]')
