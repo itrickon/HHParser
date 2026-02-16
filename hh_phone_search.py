@@ -21,19 +21,13 @@ class HHParse:
         self.input_file = Path(input_file)
         self.max_num_firm = max_num_firm
         self.data_saving = "hh_parse_results/data.xlsx"
-        self.list_of_companies = []
-        self.start_row = 2
-        self.count_page = 0
         self.warning_message()
         # Получаем данные фирмы для каждого URL в партии
         self.batch_results = []
         # БАЗОВЫЕ ТАЙМАУТЫ
-        self.CLICK_DELAY = (
-            0.5  # Базовая задержка в секундах перед ожиданием появления номера телефона
-        )
         self.CONCURRENCY = 3  #                            Количество одновременно открытых вкладок браузера (2–3 оптимально)
         self.BATCH_CONCURRENCY_JITTER = True #             Иногда работаем 2 вкладками вместо 3 для естественности
-        self.NAV_STAGGER_BETWEEN_TABS = (0.15, 0.4)  #     Пауза перед открытием КАЖДОЙ вкладки (чтобы не стартовали все разом)
+        self.NAV_STAGGER_BETWEEN_TABS = (0.5, 0.9)  #     Пауза перед открытием КАЖДОЙ вкладки (чтобы не стартовали все разом)
         self.POST_NAV_IDLE = (0.35, 0.5)  #                Небольшая «заминка» после загрузки страницы перед действиями
         self.PAGE_DELAY_BETWEEN_BATCHES = (0.2, 0.4,)  #   Пауза между партиями ссылок (раньше была (2.0, 4.0))
         self.CLOSE_STAGGER_BETWEEN_TABS = (0.15, 0.25,)  # Вкладки закрываем с небольшой случайной паузой
@@ -53,13 +47,8 @@ class HHParse:
             "hover_pause_s": (0.14, 0.42),  #        Пауза при наведении на элементы
             "pre_click_pause_s": (0.10, 0.28),  #    Короткая пауза перед кликом
             "post_click_pause_s": (0.12, 0.32),  #   Пауза сразу после клика
-            "mouse_wiggle_px": (4, 12),  #           Амплитуда «подёргивания» мыши
-            "mouse_wiggle_steps": (2, 5),  #         Сколько шагов «подёргиваний» мыши
             "between_actions_pause": (0.10,0.30),  # Пауза между действиями (скролл, клик, наведение)
-            "click_delay_jitter": (
-                self.CLICK_DELAY * 0.4,
-                self.CLICK_DELAY * 0.8,
-            ),  # Случайная задержка после клика по телефону (min и max)
+            "click_delay_jitter": (0.2, 0.4),  # Случайная задержка после клика по телефону (min и max)
         }
 
     async def human_sleep(self, a: float, b: float):
@@ -68,25 +57,6 @@ class HHParse:
         Используется для имитации человеческих пауз и предотвращения блокировок!
         """
         await asyncio.sleep(random.uniform(a, b))
-
-    async def human_scroll_jitter(self, page: AsyncPage, count: int | None = None):
-        """
-        Имитирует человеческий скроллинг страницы.
-        Выполняет случайное количество скроллов со случайным шагом и направлением.
-        page: Playwright Page объект
-        count: Количество скроллов
-        """
-        if count is None:
-            count = random.randint(*self.HUMAN["pre_page_warmup_scrolls"])  # Случайное количество скролов
-        try:
-            height = await page.evaluate("() => document.body.scrollHeight") or 3000
-            for _ in range(count):
-                step = random.randint(*self.HUMAN["scroll_step_px"])
-                direction = 1 if random.random() > 0.25 else -1
-                y = max(0, min(height, await page.evaluate("() => window.scrollY") + step * direction))
-                await page.evaluate("y => window.scrollTo({top: y, behavior: 'smooth'})", y)  # Плавный скролл через JavaScript
-        except Exception:
-            pass
 
     async def press_and_rel(self):
         """Ожидает нажатия Enter из GUI или консоли"""
@@ -102,7 +72,7 @@ class HHParse:
     async def wait_for_gui_enter(self):
         """Асинхронно ждет события от GUI"""
         while not self.enter_event.is_set():
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.3)
         self.enter_event.clear()  # Сбрасываем для следующего использования
 
     def trigger_enter_from_gui(self):
@@ -182,7 +152,6 @@ class HHParse:
                 # Объединяем и сохраняем (быстро)
                 combined_df = pd.concat([existing_df, new_df], ignore_index=True)
                 combined_df.to_excel(self.data_saving, index=False)
-                print(f"Добавлено {len(get_firm_data)} записей")
                 
             except Exception as e:
                 print(f"Ошибка сохранения: {e}")
@@ -208,7 +177,6 @@ class HHParse:
         Args:
             context: Контекст браузера Playwright
             urls: Список URL для обработки
-            pending_queue: Список для добавления отложенных URL
         """
         if not urls:
             return
@@ -241,6 +209,7 @@ class HHParse:
                     except PWTimeoutError:
                         print(f"Таймаут: {url}")
                         continue
+                    
                 for url, p in batch:
                     await self.human_sleep(*self.HUMAN["between_actions_pause"])
 
@@ -326,16 +295,14 @@ class HHParse:
                     if phone_text and phone_text.strip():
                         # Очищаем телефон от лишних символов, оставляем только цифры и +
                         phone_clean = re.sub(r'[^\d+]', '', phone_text.strip())
-                        # Убираем + в начале для единообразия
                         firm_data["true_phone"] = phone_clean.lstrip('+')
                 else:
                     # Если телефон не найден, возможно нужно кликнуть по блоку телефона
                     phone_block = await page.query_selector('div[data-qa="vacancy-contacts__phone"]')
                     if phone_block:
-                        print("Кликаем по блоку телефона...")
-                        
-                        
+                        await phone_block.click()
                         # Ищем телефон после клика
+                        await asyncio.sleep(0.5)
                         phone_span = await page.query_selector('span[data-qa="vacancy-contacts__phone-number"]')
                         if phone_span:
                             phone_text = await phone_span.text_content()
@@ -392,7 +359,6 @@ class HHParse:
                 update_callback(f"Новых ссылок к обработке: {len(urls)};")
         except:
             pass
-        # atexit.register(self.flush_progress)  # Регистрация функции при завершении программы
 
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(
@@ -436,7 +402,7 @@ class HHParse:
                         except PWTimeoutError:
                             print(f"Таймаут при загрузке {seed_url}")
 
-                    await self.human_sleep(0.2, 0.6)
+                    await self.human_sleep(0.3, 0.7)
 
                     print("\nТвои действия:")  # Инструкция пользователю
                     print(" • если есть капча — реши;")
@@ -460,13 +426,13 @@ class HHParse:
                         # Основной список из Excel
                 try:
                     await self.process_urls_with_pool(context, urls, update_callback)
-
+                    if self.batch_results != 0:
+                        await self.data_output_to_xlsx(self.batch_results)
                 except Exception as e:
                     print(f"Ошибка {e}")
 
             finally:
                 await browser.close()
-                self.browser = None
 
 
 async def main():

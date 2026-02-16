@@ -530,7 +530,7 @@ class HHParse:
                             await self.data_output_to_xlsx(self.list_of_companies)
                             self.list_of_companies = []
 
-                        await self.human_sleep(0.3, 0.7)
+                        await self.human_sleep(0.4, 0.8)
 
                     # Сохраняем остатки
                     if self.list_of_companies:
@@ -546,7 +546,7 @@ class HHParse:
                     print("\nПроверяем наличие следующей страницы...")
                     if await self.go_to_next_page():
                         page_num += 1
-                        await self.human_sleep(0.3, 0.6)
+                        await self.human_sleep(0.4, 0.7)
                     else:
                         print("Больше нет страниц для парсинга")
                         break
