@@ -2,7 +2,7 @@
 *.xlsx
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+**/__pycache__/
 *.py[codz]
 *$py.class
 
@@ -11,7 +11,9 @@ __pycache__/
 
 # exe files
 _internal
+build
 HHParser.exe
+run_hhparser.bat
 
 # Distribution / packaging
 .Python
