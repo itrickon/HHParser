@@ -41,14 +41,7 @@ class HHParse:
 
         # ЧЕЛОВЕЧНОСТЬ / АНТИБАН-ПОВЕДЕНИЕ
         self.HUMAN = {
-            "pre_page_warmup_scrolls": (1, 3),  #    Сколько раз «прогрелись» скроллом после открытия страницы
-            "scroll_step_px": (250, 900),  #         Диапазон шага скролла в пикселях
-            "scroll_pause_s": (0.18, 0.75),  #       Пауза между скроллами
-            "hover_pause_s": (0.14, 0.42),  #        Пауза при наведении на элементы
-            "pre_click_pause_s": (0.10, 0.28),  #    Короткая пауза перед кликом
-            "post_click_pause_s": (0.12, 0.32),  #   Пауза сразу после клика
             "between_actions_pause": (0.10,0.30),  # Пауза между действиями (скролл, клик, наведение)
-            "click_delay_jitter": (0.2, 0.4),  # Случайная задержка после клика по телефону (min и max)
         }
 
     async def human_sleep(self, a: float, b: float):
@@ -319,15 +312,10 @@ class HHParse:
                 
             except Exception as e:
                 print(f"Ошибка при поиске контактов: {e}")
-
                     
         except Exception as e:
             print(f"Ошибка при поиске контактов: {e}")
             firm_data["true_phone"] = f"Ошибка"
-
-
-        except Exception as e:
-            print(f"Ошибка при получении данных фирмы: {e}")
 
         # Возвращаем в формате списка
         return [
@@ -406,7 +394,7 @@ class HHParse:
 
                     print("\nТвои действия:")  # Инструкция пользователю
                     print(" • если есть капча — реши;")
-                    print(" • залогинься в Авито;")
+                    print(" • залогинься в HH;")
                     print(" • оставь открытую страницу объявления.")
 
                     # Здесь ждем подтверждения входа
@@ -426,7 +414,7 @@ class HHParse:
                         # Основной список из Excel
                 try:
                     await self.process_urls_with_pool(context, urls, update_callback)
-                    if self.batch_results != 0:
+                    if self.batch_results:
                         await self.data_output_to_xlsx(self.batch_results)
                 except Exception as e:
                     print(f"Ошибка {e}")
