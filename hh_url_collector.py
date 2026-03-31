@@ -108,9 +108,6 @@ class HHVacancyCollector:
             self.context = await browser.new_context()
             self.page = await self.context.new_page()
 
-            if update_callback:
-                update_callback(f"Переход на страницу: {self.search_url}")
-
             await self.page.goto(
                 self.search_url,
                 wait_until="domcontentloaded",

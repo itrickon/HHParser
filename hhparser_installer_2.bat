@@ -11,7 +11,6 @@ echo.
 echo.
 echo Installing dependencies globally...
 pip install sv-ttk
-pip install pyinstaller
 pip install pandas
 pip install openpyxl
 pip install playwright
@@ -42,23 +41,43 @@ python -m playwright install chromium --force
 echo.
 echo Compiling HHParser EXE...
 
-:: Находим путь к Python
-for /f "tokens=*" %%i in ('where python') do set PYTHON_PATH=%%i
-for /f "tokens=*" %%i in ('python -c "import sys; print(sys.prefix)"') do set PYTHON_PREFIX=%%i
+:: Находим путь к Python через where
+set "PYTHON_PATH="
+for /f "tokens=1 delims=" %%i in ('where python 2^>nul') do (
+    if not defined PYTHON_PATH set "PYTHON_PATH=%%i"
+)
+
+if not defined PYTHON_PATH (
+    echo ERROR: Python not found!
+    pause
+    exit /b 1
+)
 
 echo Python path: %PYTHON_PATH%
-echo Python prefix: %PYTHON_PREFIX%
 
-:: Компиляция в один EXE
-pyinstaller --clean --noconfirm ^
+:: Получаем префикс Python
+for /f "tokens=*" %%i in ('%PYTHON_PATH% -c "import sys; print(sys.prefix)"') do set "PYTHON_PREFIX=%%i"
+
+:: Проверяем и устанавливаем pyinstaller
+echo Checking PyInstaller...
+%PYTHON_PATH% -m pip show pyinstaller >nul 2>&1
+if errorlevel 1 (
+    echo Installing PyInstaller...
+    %PYTHON_PATH% -m pip install pyinstaller
+) else (
+    echo PyInstaller already installed
+)
+
+:: Компиляция в один EXE (используем прямой путь к скрипту)
+echo.
+echo Starting compilation...
+"%PYTHON_PREFIX%\Scripts\pyinstaller.exe" --clean --noconfirm ^
     --distpath=. ^
     --name="HHParser" ^
     --onefile ^
     --windowed ^
     --icon="static/HHParse_logo.ico" ^
     --add-data="static;static" ^
-    --paths="%PYTHON_PREFIX%\Lib" ^
-    --paths="%PYTHON_PREFIX%\Lib\tkinter" ^
     --hidden-import=tkinter ^
     --hidden-import=tkinter.ttk ^
     --hidden-import=tkinter.messagebox ^
@@ -73,7 +92,7 @@ pyinstaller --clean --noconfirm ^
 if not exist "HHParser.exe" (
     echo ERROR: HHParser.exe not found!
     echo Trying alternative compilation with --onedir...
-    pyinstaller --clean --noconfirm ^
+    %PYTHON_PATH% -m pyinstaller --clean --noconfirm ^
         --distpath=. ^
         --name="HHParser" ^
         --onedir ^
